@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quizarena_app
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    environment:
+      APP_NAME: "QuizArena ULTRA"
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_KEY: "${APP_KEY:-base64:ZCMQD55lX6ZKbpxPZPdyvwpc+AWNDuF0UR8SdHA9e44=}"
+      APP_URL: "http://localhost:${APP_PORT:-8000}"
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: quizarena
+      DB_USERNAME: quizuser
+      DB_PASSWORD: quizpassword
+      RUN_MIGRATIONS: "true"
+      RUN_DB_SEED: "true"
+      SESSION_DRIVER: database
+      QUEUE_CONNECTION: database
+      CACHE_STORE: database
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - quizarena_network
+
+  mysql:
+    image: mysql:8.0
+    container_name: quizarena_mysql
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: quizarena
+      MYSQL_USER: quizuser
+      MYSQL_PASSWORD: quizpassword
+    volumes:
+      - quizarena_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - quizarena_network
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: quizarena_pma
+    restart: unless-stopped
+    ports:
+      - "${PMA_PORT:-8080}:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+    depends_on:
+      - mysql
+    networks:
+      - quizarena_network
+
+volumes:
+  quizarena_db_data:
+
+networks:
+  quizarena_network:
+    driver: bridge
